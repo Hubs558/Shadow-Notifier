@@ -1,0 +1,553 @@
+-- ═══════════════════════════════════════════════════════════════════
+-- SHADOW BOT (Anti-Dup + Whitelist/Blacklist + Contador + Top 1)
+-- ═══════════════════════════════════════════════════════════════════
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Http = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+
+local PLACE_ID = 107778070777162
+local DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1564851666933780480/4cYPwbYbvyQB9oI_UMGhNNYDko12mTga0pYewf8X46P9htiZBL1eftEplcmVOUau8tYt"
+local SCRIPT_URL = "https://raw.githubusercontent.com/josearlindodasilva07-svg/Server-hoop-bot/refs/heads/main/Server%20hoop"
+
+-- ═══════════════════════════════════════════════════════════════════
+-- ⚙️ CONFIGURAÇÕES
+-- ═══════════════════════════════════════════════════════════════════
+
+-- WHITELIST: se tiver ALGUM true aqui, o bot SÓ aceita os que forem true
+-- Se TODOS forem false, o bot aceita TODOS os pets (Cosmic+)
+local WHITELIST = {
+    -- Coloque true nos que VOCÊ QUER
+    ["Kraken"] = false,
+    ["T-Rex"] = false,
+    ["Tralaledon"] = false,
+    ["Starry Fox"] = false,
+    ["RazorFang"] = false,
+    ["Centaur"] = false,
+    ["Pure Jellyfish"] = false,
+    ["Gargoyle"] = false,
+    ["Mutant Shark"] = false,
+    ["Stag"] = false,
+    ["Cosmic Dragon"] = false,
+    ["Cosmic Skeleton Boss"] = false,
+    ["Eternal Lunar Dragon"] = false,
+    ["El Maja"] = false,
+    ["Mosasaurus"] = false,
+    ["Celestial Sunlion"] = false,
+    ["Equinox"] = false,
+    ["Skeleton Horse"] = false,
+    ["Eternal Pegasus"] = false,
+    ["Gorilla King"] = false,
+    ["Oni Tiger"] = false,
+    ["Royal Skywhale"] = false,
+    ["Aetheron"] = false,
+    ["World Burner"] = false,
+    ["Sabertooth"] = false,
+    ["ArchAngel"] = false,
+    ["Nightflame"] = false,
+    ["Kitsune"] = false,
+    ["Unicorn"] = false,
+    ["Petal Beetle"] = false,
+    ["Sacred Moth"] = false,
+    ["Rhinotaur"] = false,
+    ["Spirit Panda"] = false,
+    ["Demon Hound"] = false,
+    ["Mantaris"] = false,
+    ["Imp"] = false,
+    ["Holy Peacock"] = false,
+    ["Koi"] = false,
+    ["Yeti"] = false,
+    ["Astral Jackalope"] = false,
+}
+
+-- BLACKLIST: se tiver ALGUM true aqui, esses pets são RECUSADOS
+local BLACKLIST = {
+    -- Coloque true nos que VOCÊ NÃO QUER
+    ["Kraken"] = false,
+    ["T-Rex"] = false,
+    ["Tralaledon"] = false,
+    ["Starry Fox"] = false,
+    ["RazorFang"] = false,
+    ["Centaur"] = false,
+    ["Pure Jellyfish"] = false,
+    ["Gargoyle"] = false,
+    ["Mutant Shark"] = false,
+    ["Stag"] = false,
+    ["Cosmic Dragon"] = false,
+    ["Cosmic Skeleton Boss"] = false,
+    ["Eternal Lunar Dragon"] = false,
+    ["El Maja"] = false,
+    ["Mosasaurus"] = false,
+    ["Celestial Sunlion"] = false,
+    ["Equinox"] = false,
+    ["Skeleton Horse"] = false,
+    ["Eternal Pegasus"] = false,
+    ["Gorilla King"] = false,
+    ["Oni Tiger"] = false,
+    ["Royal Skywhale"] = false,
+    ["Aetheron"] = false,
+    ["World Burner"] = false,
+    ["Sabertooth"] = false,
+    ["ArchAngel"] = false,
+    ["Nightflame"] = false,
+    ["Kitsune"] = false,
+    ["Unicorn"] = false,
+    ["Petal Beetle"] = false,
+    ["Sacred Moth"] = false,
+    ["Rhinotaur"] = false,
+    ["Spirit Panda"] = false,
+    ["Demon Hound"] = false,
+    ["Mantaris"] = false,
+    ["Imp"] = false,
+    ["Holy Peacock"] = false,
+    ["Koi"] = false,
+    ["Yeti"] = false,
+    ["Astral Jackalope"] = false,
+}
+
+-- Tempo (em segundos) que espera pra ver se aparece um ovo melhor
+local TEMPO_ESPERA_MELHOR = 2
+
+-- ═══════════════════════════════════════════════════════════════════
+-- ANTI-DUPLICAÇÃO
+-- ═══════════════════════════════════════════════════════════════════
+local servidoresVisitados = {}
+local CACHE_FILE = "ShadowBot_Servers.json"
+local ovosAchados = 0
+local servidoresPassados = 0
+local INICIO_BOT = os.time()
+
+pcall(function()
+    if readfile and isfile and isfile(CACHE_FILE) then
+        local dados = Http:JSONDecode(readfile(CACHE_FILE))
+        if type(dados) == "table" then
+            servidoresVisitados = dados
+        end
+    end
+end)
+
+local function salvarCache()
+    pcall(function()
+        if writefile then
+            local lista = {}
+            for jobId, _ in pairs(servidoresVisitados) do
+                table.insert(lista, jobId)
+            end
+            if #lista > 200 then
+                for i = 1, #lista - 200 do
+                    servidoresVisitados[lista[i]] = nil
+                end
+            end
+            writefile(CACHE_FILE, Http:JSONEncode(servidoresVisitados))
+        end
+    end)
+end
+
+local function formatarTempo(segundos)
+    local horas = math.floor(segundos / 3600)
+    local minutos = math.floor((segundos % 3600) / 60)
+    local secs = segundos % 60
+    if horas > 0 then return string.format("%dh %dm", horas, minutos)
+    elseif minutos > 0 then return string.format("%dm %ds", minutos, secs)
+    end
+    return string.format("%ds", secs)
+end
+
+-- ═══════════════════════════════════════════════════════════════════
+-- WEBSOCKET
+-- ═══════════════════════════════════════════════════════════════════
+local BACKEND_WSS = "wss://shark-notifier.onrender.com"
+local wsConnection = nil
+local wsConnected = false
+local filaEnvios = {}
+
+local function getWs()
+    return (syn and syn.websocket and syn.websocket.connect)
+        or (WebSocket and WebSocket.connect)
+        or (fluxus and fluxus.websocket and fluxus.websocket.connect)
+        or (krnl and krnl.websocket and krnl.websocket.connect)
+end
+
+local function enviarAlertaWebSocket(dados)
+    table.insert(filaEnvios, dados)
+end
+
+task.spawn(function()
+    local connectFunc = getWs()
+    if not connectFunc then return end
+    while true do
+        local ok, ws = pcall(function() return connectFunc(BACKEND_WSS .. "?role=bot") end)
+        if ok and ws then
+            wsConnected = true
+            wsConnection = ws
+            pcall(function()
+                ws.OnClose:Connect(function()
+                    wsConnected = false
+                    wsConnection = nil
+                end)
+            end)
+            while #filaEnvios > 0 and wsConnected do
+                local payload = table.remove(filaEnvios, 1)
+                local encoded = Http:JSONEncode(payload)
+                local okSend = pcall(function() ws:Send(encoded) end)
+                if not okSend then
+                    table.insert(filaEnvios, 1, payload)
+                    break
+                end
+                task.wait(0.1)
+            end
+            while wsConnected do
+                if #filaEnvios > 0 then
+                    local payload = table.remove(filaEnvios, 1)
+                    local encoded = Http:JSONEncode(payload)
+                    local okSend = pcall(function() ws:Send(encoded) end)
+                    if not okSend then table.insert(filaEnvios, 1, payload) end
+                end
+                task.wait(0.2)
+            end
+        else
+            task.wait(3)
+        end
+    end
+end)
+
+repeat task.wait(1) until LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+repeat task.wait(1) until game:IsLoaded()
+
+local function agendarReinjeccao()
+    local queueFn = (syn and syn.queue_on_teleport) or queue_on_teleport or queueonteleport
+    if type(queueFn) == "function" then
+        pcall(function() queueFn('game:HttpGet("' .. SCRIPT_URL .. '")') end)
+    end
+end
+agendarReinjeccao()
+
+if game.PlaceId ~= PLACE_ID then LocalPlayer:Kick("Jogo Errado") return end
+
+-- ═══════════════════════════════════════════════════════════════════
+-- IMAGENS DOS PETS
+-- ═══════════════════════════════════════════════════════════════════
+local PET_IMAGES = {
+    ["Kraken"] = "https://static.wikia.nocookie.net/stealanegg/images/d/d3/Kraken.png/revision/latest?cb=20260904110057",
+    ["T-Rex"] = "https://static.wikia.nocookie.net/stealanegg/images/f/f8/T-Rex.png/revision/latest?cb=20260903161834",
+    ["Tralaledon"] = "https://static.wikia.nocookie.net/stealanegg/images/3/34/Tralaledon.png/revision/latest?cb=20260901194501",
+    ["Starry Fox"] = "https://static.wikia.nocookie.net/stealanegg/images/4/40/Starry_Fox.png/revision/latest?cb=20261006232700",
+    ["RazorFang"] = "https://static.wikia.nocookie.net/stealanegg/images/c/c2/RazorFang.png/revision/latest?cb=20260912164720",
+    ["Centaur"] = "https://static.wikia.nocookie.net/stealanegg/images/b/bc/Centaur.png/revision/latest?cb=20260912164622",
+    ["Pure Jellyfish"] = "https://static.wikia.nocookie.net/stealanegg/images/7/7e/Pure_Jellyfish.png/revision/latest?cb=20260912164614",
+    ["Gargoyle"] = "https://static.wikia.nocookie.net/stealanegg/images/4/44/Gargoyle.png/revision/latest?cb=20260912164712",
+    ["Mutant Shark"] = "https://static.wikia.nocookie.net/stealanegg/images/e/e5/Mutant_Shark.png/revision/latest?cb=20260901190802",
+    ["Stag"] = "https://static.wikia.nocookie.net/stealanegg/images/1/10/Stag.png/revision/latest?cb=20260903135633",
+    ["Cosmic Dragon"] = "https://static.wikia.nocookie.net/stealanegg/images/3/3e/Cosmic_Dragon.png/revision/latest?cb=20260903140720",
+    ["Cosmic Skeleton Boss"] = "https://static.wikia.nocookie.net/stealanegg/images/9/97/Cosmic_Skeleton_Boss.png/revision/latest?cb=20260904110709",
+    ["Eternal Lunar Dragon"] = "https://static.wikia.nocookie.net/stealanegg/images/0/07/Eternal_Lunar_Dragon.png/revision/latest?cb=20260904025034",
+    ["El Maja"] = "https://static.wikia.nocookie.net/stealanegg/images/9/9b/El_Maja.png/revision/latest?cb=20260908051427",
+    ["Mosasaurus"] = "https://static.wikia.nocookie.net/stealanegg/images/b/b0/Mosasaurus.png/revision/latest?cb=20260904025233",
+    ["Celestial Sunlion"] = "https://static.wikia.nocookie.net/stealanegg/images/e/e4/Celestial_Sunlion.webp/revision/latest?cb=20261017110543",
+    ["Equinox"] = "https://static.wikia.nocookie.net/stealanegg/images/e/e7/Equinox.png/revision/latest?cb=20260913045536",
+    ["Skeleton Horse"] = "https://static.wikia.nocookie.net/stealanegg/images/d/de/Skeleton_Horse.png/revision/latest?cb=20260912164727",
+    ["Eternal Pegasus"] = "https://static.wikia.nocookie.net/stealanegg/images/3/36/Eternal_Pegasus.png/revision/latest?cb=20260913012404",
+    ["Gorilla King"] = "https://static.wikia.nocookie.net/stealanegg/images/b/bc/Gorilla_King.png/revision/latest?cb=20260901190751",
+    ["Oni Tiger"] = "https://static.wikia.nocookie.net/stealanegg/images/5/55/Oni_Tiger.png/revision/latest?cb=20260903135620",
+    ["Royal Skywhale"] = "https://static.wikia.nocookie.net/stealanegg/images/1/1a/Royal_Skywhale.webp/revision/latest?cb=20261017112145",
+    ["Aetheron"] = "https://static.wikia.nocookie.net/stealanegg/images/e/e7/Aetheron.png/revision/latest?cb=20260913045520",
+    ["World Burner"] = "https://static.wikia.nocookie.net/stealanegg/images/f/fe/World_Burner.png/revision/latest?cb=20260912164738",
+    ["Sabertooth"] = "https://static.wikia.nocookie.net/stealanegg/images/a/a4/Sabertooth.png/revision/latest?cb=20260927050256",
+    ["ArchAngel"] = "https://static.wikia.nocookie.net/stealanegg/images/6/60/ArchAngel.png/revision/latest?cb=20260912164639",
+    ["Nightflame"] = "https://static.wikia.nocookie.net/stealanegg/images/a/aa/Nightflame.png/revision/latest?cb=20260901190742",
+    ["Kitsune"] = "https://static.wikia.nocookie.net/stealanegg/images/0/04/Kitsune.png/revision/latest?cb=20260903135644",
+    ["Unicorn"] = "https://static.wikia.nocookie.net/stealanegg/images/7/7e/Unicorn.png/revision/latest?cb=20260901185215",
+    ["Petal Beetle"] = "https://static.wikia.nocookie.net/stealanegg/images/8/8a/Petal_Beetle.webp/revision/latest?cb=20261021054348",
+    ["Sacred Moth"] = "https://static.wikia.nocookie.net/stealanegg/images/6/68/Sacred_Moth.png/revision/latest?cb=20260912164556",
+    ["Rhinotaur"] = "https://static.wikia.nocookie.net/stealanegg/images/3/31/Rhinotaur.png/revision/latest?cb=20260901190811",
+    ["Spirit Panda"] = "https://static.wikia.nocookie.net/stealanegg/images/5/58/SpiritPanda.png/revision/latest?cb=20261023122816",
+    ["Demon Hound"] = "https://static.wikia.nocookie.net/stealanegg/images/f/f2/Demon_Hound.png/revision/latest?cb=20260912164706",
+    ["Mantaris"] = "https://static.wikia.nocookie.net/stealanegg/images/0/0e/Mantaris.png/revision/latest?cb=20260901190821",
+    ["Imp"] = "https://static.wikia.nocookie.net/stealanegg/images/b/b3/Imp.png/revision/latest?cb=20260912164659",
+    ["Holy Peacock"] = "https://static.wikia.nocookie.net/stealanegg/images/1/15/Holy_Peacock.png/revision/latest?cb=20260912164606",
+    ["Koi"] = "https://static.wikia.nocookie.net/stealanegg/images/6/66/Koi.png/revision/latest?cb=20260903135610",
+    ["Yeti"] = "https://static.wikia.nocookie.net/stealanegg/images/7/7d/Yeti.png/revision/latest?cb=20260904025057",
+    ["Astral Jackalope"] = "https://static.wikia.nocookie.net/stealanegg/images/7/76/AstralJackalope.webp/revision/latest?cb=20261023121752",
+}
+
+local RARIDADES_PERMITIDAS = {
+    ["cosmic"] = true,
+    ["eternal"] = true,
+    ["secret"] = true,
+    ["divine"] = true,
+}
+
+local function norm(s) return tostring(s or ""):lower():gsub("[%s%-_']", "") end
+local PET_NORM = {}
+for k, v in pairs(PET_IMAGES) do PET_NORM[norm(k)] = v end
+local function getPetImage(name) return PET_NORM[norm(name)] end
+
+-- Verifica se a whitelist tem algum item ativado
+local function temWhitelistAtiva()
+    for _, ativo in pairs(WHITELIST) do
+        if ativo == true then return true end
+    end
+    return false
+end
+
+-- Verifica se o pet passou na whitelist e na blacklist
+local function petPermitido(nome)
+    local n = norm(nome)
+    
+    -- Blacklist: se tá true, recusa
+    for pet, ativo in pairs(BLACKLIST) do
+        if ativo == true and norm(pet) == n then
+            return false
+        end
+    end
+    
+    -- Whitelist: se tem algo true, SÓ aceita os que tão true
+    if temWhitelistAtiva() then
+        for pet, ativo in pairs(WHITELIST) do
+            if ativo == true and norm(pet) == n then
+                return true
+            end
+        end
+        return false
+    end
+    
+    -- Se não tem whitelist ativa, aceita qualquer coisa (que não esteja na blacklist)
+    return true
+end
+
+-- ═══════════════════════════════════════════════════════════════════
+-- CONSOLE VISUAL
+-- ═══════════════════════════════════════════════════════════════════
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+local oldGui = playerGui:FindFirstChild("ShadowBotLog")
+if oldGui then oldGui:Destroy() end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ShadowBotLog"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 280, 0, 120)
+main.Position = UDim2.new(0, 10, 0, 80)
+main.BackgroundColor3 = Color3.fromRGB(10, 8, 15)
+main.Parent = gui
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
+
+local logLabel = Instance.new("TextLabel")
+logLabel.Size = UDim2.new(1, -20, 1, -20)
+logLabel.Position = UDim2.new(0, 10, 0, 10)
+logLabel.BackgroundTransparency = 1
+logLabel.Text = "🤖 Iniciando..."
+logLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
+logLabel.TextSize = 11
+logLabel.Font = Enum.Font.Code
+logLabel.TextWrapped = true
+logLabel.TextXAlignment = Enum.TextXAlignment.Left
+logLabel.TextYAlignment = Enum.TextYAlignment.Top
+logLabel.Parent = main
+
+local function log(txt, color)
+    logLabel.Text = txt
+    logLabel.TextColor3 = color or Color3.fromRGB(200, 200, 220)
+end
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        local tempoRodando = os.time() - INICIO_BOT
+        log("⏱️ Rodando: " .. formatarTempo(tempoRodando) .. "\n" ..
+            "🥚 Ovos achados: " .. ovosAchados .. "\n" ..
+            "🌐 Servidores: " .. servidoresPassados, Color3.fromRGB(200, 200, 220))
+    end
+end)
+
+local function fmtVal(n)
+    n = tonumber(n) or 0
+    if n >= 1e15 then return string.format("$%.1fQ/s", n/1e15) end
+    if n >= 1e12 then return string.format("$%.1fT/s", n/1e12) end
+    if n >= 1e9  then return string.format("$%.1fB/s", n/1e9) end
+    if n >= 1e6  then return string.format("$%.1fM/s", n/1e6) end
+    if n >= 1e3  then return string.format("$%.1fK/s", n/1e3) end
+    return "$" .. math.floor(n) .. "/s"
+end
+
+-- ═══════════════════════════════════════════════════════════════════
+-- ENVIO PRO DISCORD
+-- ═══════════════════════════════════════════════════════════════════
+local function enviarDiscord(best)
+    local httpReq = (syn and syn.request) or (http and http.request) or (http_request) or (fluxus and fluxus.request) or (krnl and krnl.request) or (request)
+    if not httpReq then return end
+
+    local petUrl = getPetImage(best.Nome)
+    
+    local embed = {
+        title = "🥚 Ovo Encontrado! - " .. os.date("%H:%M"),
+        color = 10181046,
+        description = "🥚 **Egg**: " .. tostring(best.Nome) .. "\n" ..
+                      "💰 **Money**: ~" .. fmtVal(best.Geracao) .. "\n" ..
+                      "✨ **Raridade**: " .. tostring(best.RarityName),
+        footer = { text = "Shadow Bot | " .. LocalPlayer.Name }
+    }
+    
+    if petUrl then 
+        embed.thumbnail = { url = petUrl } 
+    end
+
+    local body = Http:JSONEncode({ username = "Shadow Bot", embeds = { embed } })
+    
+    pcall(function()
+        httpReq({ Url = DISCORD_WEBHOOK, Method = "POST", Headers = { ["Content-Type"] = "application/json" }, Body = body })
+    end)
+end
+
+-- ═══════════════════════════════════════════════════════════════════
+-- ENVIO PRO WEBSOCKET
+-- ═══════════════════════════════════════════════════════════════════
+local function enviarWebSocket(best)
+    local payload = {
+        type = "vex_discovery",
+        pet = {
+            display_name = best.Nome,
+            name = best.Nome,
+            rarity = best.RarityName,
+            generation = best.Geracao,
+            asset_category = best.Nome,
+        },
+        raw_name = best.Nome,
+        name = best.Nome,
+        generation = best.Geracao,
+        owner_username = LocalPlayer.Name,
+        owner = LocalPlayer.Name,
+        job_id = game.JobId,
+        rarity = best.RarityName,
+        asset_category = best.Nome,
+        source = "shadow_bot",
+        broadcast = true,
+    }
+    enviarAlertaWebSocket(payload)
+end
+
+-- ═══════════════════════════════════════════════════════════════════
+-- SERVER HOP (ANTI-DUP)
+-- ═══════════════════════════════════════════════════════════════════
+local function fazerServerHop()
+    agendarReinjeccao()
+
+    local TeleportService = game:GetService("TeleportService")
+    local servidores = {}
+
+    pcall(function()
+        local url = "https://games.roblox.com/v1/games/" .. PLACE_ID .. "/servers/Public?sortOrder=Asc&limit=100"
+        local resp = game:HttpGet(url, true, { ["User-Agent"] = "Roblox/WinInet" })
+        local data = Http:JSONDecode(resp)
+        if data and data.data then
+            for _, srv in ipairs(data.data) do
+                local jobId = tostring(srv.id)
+                if tonumber(srv.playing) < tonumber(srv.maxPlayers) 
+                   and jobId ~= game.JobId 
+                   and not servidoresVisitados[jobId] then
+                    table.insert(servidores, srv)
+                end
+            end
+        end
+    end)
+
+    if #servidores == 0 then
+        servidoresVisitados = {}
+        pcall(function() TeleportService:Teleport(PLACE_ID, LocalPlayer) end)
+        return
+    end
+
+    for i = #servidores, 2, -1 do
+        local j = math.random(i)
+        servidores[i], servidores[j] = servidores[j], servidores[i]
+    end
+
+    for i, srv in ipairs(servidores) do
+        local jobId = tostring(srv.id)
+        local falhou = false
+        local conn = TeleportService.TeleportInitFailed:Connect(function() falhou = true end)
+        
+        pcall(function() TeleportService:TeleportToPlaceInstance(PLACE_ID, jobId, LocalPlayer) end)
+        
+        task.wait(3)
+        conn:Disconnect()
+        
+        if not falhou then
+            servidoresVisitados[jobId] = os.time()
+            servidoresPassados += 1
+            salvarCache()
+            return
+        end
+    end
+    
+    servidoresVisitados = {}
+    pcall(function() TeleportService:Teleport(PLACE_ID, LocalPlayer) end)
+end
+
+-- ═══════════════════════════════════════════════════════════════════
+-- SCANNER (COM TOP 1)
+-- ═══════════════════════════════════════════════════════════════════
+local networking = ReplicatedStorage:WaitForChild("Packages", 20):WaitForChild("Networking", 20)
+local AskFieldEggSnapshot = networking:WaitForChild("RF/EggWorld/AskFieldEggSnapshot", 20)
+
+local AssetsDir, Mutations = nil, nil
+pcall(function() AssetsDir = require(ReplicatedStorage.Data.Assets).Directory end)
+pcall(function() Mutations = require(ReplicatedStorage.Shared.Modules.Mutations) end)
+
+local function getEggData(record)
+    if not AssetsDir then return nil end
+    local asset = AssetsDir[record.AssetCategory]
+    if not asset then return nil end
+    local baseRate = tonumber(asset.EarningRate) or 0
+    local scale = tonumber(record.AssetScale) or 1
+    local mutMult = 1
+    if record.Mutations and #record.Mutations > 0 and Mutations and type(Mutations.EarningsFor) == "function" then
+        local ok, r = pcall(Mutations.EarningsFor, record.Mutations)
+        if ok then mutMult = tonumber(r) or 1 end
+    end
+    local gen = baseRate * (scale <= 5 and scale ^ 1.85 or (scale / 5) ^ 1.2 * 19.6378) * mutMult
+    local rarName = asset.Rarity and (asset.Rarity.DisplayName or asset.Rarity.Name) or ""
+    return { Uid = record.Uid, Nome = asset.DisplayName or record.AssetCategory, Geracao = math.floor(gen + 0.5), RarityName = rarName }
+end
+
+while true do
+    local bestAchado = nil
+    local tempoInicioBusca = os.clock()
+
+    while true do
+        local ok, snap = pcall(function() return AskFieldEggSnapshot:InvokeServer() end)
+
+        if ok and snap and snap.Records then
+            for _, r in ipairs(snap.Records) do
+                if r and r.Uid and (r.State == "Slot" or r.State == "Dropped") then
+                    local d = getEggData(r)
+                    if d and RARIDADES_PERMITIDAS[norm(d.RarityName)] and petPermitido(d.Nome) then
+                        if not bestAchado then
+                            bestAchado = d
+                            tempoInicioBusca = os.clock()
+                        elseif d.Geracao > bestAchado.Geracao then
+                            bestAchado = d
+                        end
+                    end
+                end
+            end
+        end
+
+        if bestAchado and (os.clock() - tempoInicioBusca) >= TEMPO_ESPERA_MELHOR then
+            break
+        end
+
+        task.wait(0.1)
+    end
+
+    if bestAchado then
+        ovosAchados += 1
+        enviarDiscord(bestAchado)
+        enviarWebSocket(bestAchado)
+        fazerServerHop()
+        break
+    end
+end
