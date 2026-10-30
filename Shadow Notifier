@@ -389,12 +389,12 @@ local function enviarDiscord(best)
     local petUrl = getPetImage(best.Nome)
     
     local embed = {
-        title = "🥚 Ovo Encontrado! - " .. os.date("%H:%M"),
+        title = "「 ✦ 𝐒𝐡𝐚𝐝𝐨𝐰 𝐍𝐨𝐭𝐢𝐟𝐢𝐞𝐫 ✦ 」! - " .. os.date("%H:%M"),
         color = 10181046,
-        description = "🥚 **Egg**: " .. tostring(best.Nome) .. "\n" ..
-                      "💰 **Money**: ~" .. fmtVal(best.Geracao) .. "\n" ..
-                      "✨ **Raridade**: " .. tostring(best.RarityName),
-        footer = { text = "Shadow Bot | " .. LocalPlayer.Name }
+        description = "🥚 **𝐄𝐠𝐠**: " .. tostring(best.Nome) .. "\n" ..
+                      "💰 **𝐌𝐨𝐧𝐞𝐲**: ~" .. fmtVal(best.Geracao) .. "\n" ..
+                      "✨ **𝐑𝐚𝐫𝐢𝐝𝐚𝐝𝐞**: " .. tostring(best.RarityName),
+        footer = { text = "𝐒𝐡𝐚𝐝𝐨𝐰 𝐁𝐨𝐭 | " .. LocalPlayer.Name }
     }
     
     if petUrl then 
