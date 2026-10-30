@@ -59,6 +59,7 @@ local WHITELIST = {
     ["Koi"] = false,
     ["Yeti"] = false,
     ["Astral Jackalope"] = false,
+    ["Bronto"] = false,
     ["Snowy Owl"] = false,
 }
 
@@ -105,6 +106,7 @@ local BLACKLIST = {
     ["Koi"] = false,
     ["Yeti"] = false,
     ["Astral Jackalope"] = false,
+    ["Bronto"] = false,
     ["Snowy Owl"] = false,
 }
 
@@ -271,7 +273,8 @@ local PET_IMAGES = {
     ["Koi"] = "https://static.wikia.nocookie.net/stealanegg/images/6/66/Koi.png/revision/latest?cb=20260903135610",
     ["Yeti"] = "https://static.wikia.nocookie.net/stealanegg/images/7/7d/Yeti.png/revision/latest?cb=20260904025057",
     ["Astral Jackalope"] = "https://static.wikia.nocookie.net/stealanegg/images/7/76/AstralJackalope.webp/revision/latest?cb=20261023121752",
-    ["Snowy Owl"] = "https://static.wikia.nocookie.net/stealanegg/images/c/c6/Snowy_Owl.png/revision/latest?cb=20260903135600",
+    ["Snowy Owl"] = "https://static.wikia.nocookie.net/stealanegg/images/7/76/AstralJackalope.webp/revision/latest?cb=20261023121752",
+    ["Bronto"] = "https://static.wikia.nocookie.net/stealanegg/images/1/19/Bronto.png/revision/latest?cb=20260904025043",
 }
 
 local RARIDADES_PERMITIDAS = {
